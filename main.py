@@ -1,28 +1,40 @@
+import urllib.request
+import json
 from fastapi import FastAPI
-import praw
 
 app = FastAPI()
 
-# Configura tus credenciales (puedes usar variables de entorno)
-reddit = praw.Reddit(
-    client_id=None,
-    client_secret=None,
-    user_agent="windows:extractor_reflexiones:v1.0 (by /u/TU_USUARIO_REDDIT)"
-)
-
 @app.get("/ideas")
 def obtener_ideas():
-    subreddit = reddit.subreddit("Journaling")
-    ideas = []
+    # URL de búsqueda de Reddit (formato JSON directo)
+    url = "https://www.reddit.com/r/Journaling/search.json?q=prompts&restrict_sr=1&sort=top&t=month&limit=20"
     
-    # Buscamos los "prompts" más populares del mes
-    for post in subreddit.search("prompts", sort="top", time_filter="month", limit=20):
-        if len(post.title) > 10 and not post.over_18:
-            ideas.append({
-                "titulo": post.title,
-                "texto": post.selftext[:300],
-                "url": post.url,
-                "score": post.score
-            })
+    # Camuflaje: Nos identificamos honestamente para que Reddit no nos bloquee
+    req = urllib.request.Request(
+        url, 
+        headers={"User-Agent": "windows:extractor_reflexiones:v1.0 (by /u/Gonzalo_R)"}
+    )
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
             
-    return {"status": "success", "data": ideas}
+        ideas = []
+        # Buceamos en la estructura del JSON que devuelve Reddit
+        for child in data.get("data", {}).get("children", []):
+            post = child.get("data", {})
+            titulo = post.get("title", "")
+            texto = post.get("selftext", "")
+            
+            if len(titulo) > 10 and not post.get("over_18"):
+                ideas.append({
+                    "titulo": titulo,
+                    "texto": texto[:300], # Solo los primeros 300 caracteres
+                    "url": post.get("url", ""),
+                    "score": post.get("score", 0)
+                })
+                
+        return {"status": "success", "data": ideas}
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
