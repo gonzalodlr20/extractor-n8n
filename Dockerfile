@@ -1,5 +1,4 @@
-FROM astral-sh/uv:python3.11-alpine
-
+FROM ghcr.io/astral-sh/uv:python3.11-alpine
 WORKDIR /app
 
 # Copiamos los archivos de configuración e instalamos dependencias
